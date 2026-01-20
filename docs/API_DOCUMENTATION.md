@@ -489,4 +489,4 @@ let response = await fetch("https://api.mailersend.com/v1/email", {
 
 ---
 
-**Last Updated:** January 2024
+**Last Updated:** January 2026
