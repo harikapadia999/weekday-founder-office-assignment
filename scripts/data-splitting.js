@@ -1,5 +1,5 @@
 /**
- * TASK 1: DATA SPLITTING SCRIPT (ENHANCED VERSION)
+ * TASK 1: DATA SPLITTING SCRIPT
  * 
  * This script splits candidates with multiple interview rounds into separate rows.
  * Each row represents one interview round with the corresponding Calendly link.
@@ -98,7 +98,7 @@ let rawRecords = await rawTable.selectRecordsAsync({
     ]
 });
 
-output.markdown("# 🚀 Starting Data Splitting Process (Enhanced Version)\n");
+output.markdown("# 🚀 Starting Data Splitting Process\n");
 output.markdown(`Total candidates to process: **${rawRecords.records.length}**\n`);
 
 let totalRowsCreated = 0;
