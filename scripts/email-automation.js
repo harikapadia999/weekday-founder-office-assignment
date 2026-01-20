@@ -1,5 +1,5 @@
 /**
- * TASK 2: EMAIL AUTOMATION SCRIPT (ENHANCED VERSION)
+ * TASK 2: EMAIL AUTOMATION SCRIPT
  * 
  * This script sends automated interview invitation emails to candidates
  * using the MailerSend API. Each email includes the appropriate Calendly link
@@ -273,7 +273,7 @@ async function sendEmailWithRetry(emailData, maxRetries = CONFIG.MAX_RETRIES) {
 // ============================================
 
 async function sendInterviewEmails() {
-    output.markdown("# 📧 Starting Email Automation (Enhanced Version)\n");
+    output.markdown("# 📧 Starting Email Automation\n");
     
     // Validate configuration
     if (CONFIG.MAILERSEND_API_KEY === "YOUR_MAILERSEND_API_KEY_HERE") {
