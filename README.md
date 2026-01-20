@@ -1,7 +1,7 @@
 # Weekday Founder's Office - Coding Assignment
 
 **Candidate:** HARI KAPADIA  
-**Email:** harikapadia999@gmail.com
+**Email:** harikapadia999@gmail.com  
 **Assignment:** Automated Interview Scheduling System
 
 ---
