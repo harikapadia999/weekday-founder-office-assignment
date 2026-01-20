@@ -1,8 +1,8 @@
 # Weekday Founder's Office - Assignment Submission
 
-**Candidate Name:** 2022 12027  
-**Email:** 202212027@dau.ac.in  
-**Submission Date:** January 2024  
+**Candidate:** HARI KAPADIA  
+**Email:** harikapadia999@gmail.com  
+**Submission Date:** January 2026  
 **GitHub Repository:** https://github.com/harikapadia999/weekday-founder-office-assignment  
 **Version:** Enhanced with Production-Ready Features
 
@@ -387,8 +387,8 @@ Through this assignment and enhancements, I:
 
 ## 📞 Contact & Questions
 
-**Candidate:** 2022 12027  
-**Email:** 202212027@dau.ac.in  
+**Candidate:** HARI KAPADIA  
+**Email:** harikapadia999@gmail.com  
 **GitHub:** https://github.com/harikapadia999
 
 I'm available for:
