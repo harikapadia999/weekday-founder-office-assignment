@@ -1,0 +1,71 @@
+# Weekday Assignment - Git Ignore
+
+# API Keys and Secrets
+*.env
+.env.local
+.env.production
+config/secrets.js
+config/api-keys.js
+
+# Airtable
+airtable-credentials.json
+
+# MailerSend
+mailersend-config.json
+
+# Node modules (if using Node.js)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test data
+test-data/
+*.csv
+!sample-data.csv
+
+# Logs
+logs/
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Build outputs
+dist/
+build/
+out/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Screenshots (keep in assets folder only)
+*.png
+*.jpg
+*.jpeg
+!assets/screenshots/*.png
+!assets/screenshots/*.jpg
+
+# Documentation drafts
+drafts/
+*.draft.md
+
+# Personal notes
+notes.txt
+todo.txt
+scratch.md
