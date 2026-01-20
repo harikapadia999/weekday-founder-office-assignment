@@ -1,9 +1,15 @@
 /**
- * TASK 2: EMAIL AUTOMATION SCRIPT
+ * TASK 2: EMAIL AUTOMATION SCRIPT (ENHANCED VERSION)
  * 
  * This script sends automated interview invitation emails to candidates
  * using the MailerSend API. Each email includes the appropriate Calendly link
  * for the candidate's scheduled round.
+ * 
+ * ENHANCEMENTS:
+ * - Retry logic with exponential backoff
+ * - Email validation
+ * - Enhanced error logging
+ * - Rate limit handling
  * 
  * Author: 2022 12027
  * Email: 202212027@dau.ac.in
@@ -26,8 +32,57 @@ const CONFIG = {
     RATE_LIMIT_MS: 1000, // 1 second between emails
     
     // Batch size (process this many at a time)
-    BATCH_SIZE: 10
+    BATCH_SIZE: 10,
+    
+    // Retry configuration
+    MAX_RETRIES: 3,
+    INITIAL_RETRY_DELAY: 1000 // 1 second, will increase exponentially
 };
+
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
+
+/**
+ * Validates email address format
+ * @param {string} email - Email address to validate
+ * @returns {boolean} - True if valid, false otherwise
+ */
+function isValidEmail(email) {
+    if (!email || typeof email !== 'string') {
+        return false;
+    }
+    
+    // RFC 5322 compliant email regex (simplified)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email.trim());
+}
+
+/**
+ * Validates URL format
+ * @param {string} url - URL to validate
+ * @returns {boolean} - True if valid, false otherwise
+ */
+function isValidURL(url) {
+    if (!url || typeof url !== 'string') {
+        return false;
+    }
+    
+    try {
+        new URL(url);
+        return true;
+    } catch (error) {
+        return false;
+    }
+}
+
+/**
+ * Sleep/delay function
+ * @param {number} ms - Milliseconds to sleep
+ */
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 // ============================================
 // EMAIL TEMPLATE
@@ -145,15 +200,89 @@ function generateEmailHTML(candidateName, round, calendlyLink) {
 }
 
 // ============================================
+// EMAIL SENDING WITH RETRY LOGIC
+// ============================================
+
+/**
+ * Send email with retry logic and exponential backoff
+ * @param {Object} emailData - Email data to send
+ * @param {number} maxRetries - Maximum number of retry attempts
+ * @returns {Object} - Result object with success status
+ */
+async function sendEmailWithRetry(emailData, maxRetries = CONFIG.MAX_RETRIES) {
+    let lastError = null;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            output.text(`  Attempt ${attempt}/${maxRetries}...`);
+            
+            let response = await fetch("https://api.mailersend.com/v1/email", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${CONFIG.MAILERSEND_API_KEY}`
+                },
+                body: JSON.stringify(emailData)
+            });
+            
+            // Success
+            if (response.status === 202) {
+                return { 
+                    success: true, 
+                    attempt: attempt,
+                    status: response.status 
+                };
+            }
+            
+            // Rate limited - wait and retry
+            if (response.status === 429) {
+                if (attempt < maxRetries) {
+                    let retryDelay = CONFIG.INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
+                    output.text(`  ⏳ Rate limited. Waiting ${retryDelay}ms before retry...`);
+                    await sleep(retryDelay);
+                    continue;
+                }
+            }
+            
+            // Other error
+            let errorText = await response.text();
+            throw new Error(`API returned status ${response.status}: ${errorText}`);
+            
+        } catch (error) {
+            lastError = error;
+            
+            // If this is not the last attempt, wait and retry
+            if (attempt < maxRetries) {
+                let retryDelay = CONFIG.INITIAL_RETRY_DELAY * Math.pow(2, attempt - 1);
+                output.text(`  ⚠️ Error: ${error.message}. Retrying in ${retryDelay}ms...`);
+                await sleep(retryDelay);
+            }
+        }
+    }
+    
+    // All retries failed
+    return { 
+        success: false, 
+        error: lastError?.message || "Unknown error",
+        attempts: maxRetries 
+    };
+}
+
+// ============================================
 // MAIN SCRIPT
 // ============================================
 
 async function sendInterviewEmails() {
-    output.markdown("# 📧 Starting Email Automation\n");
+    output.markdown("# 📧 Starting Email Automation (Enhanced Version)\n");
     
     // Validate configuration
     if (CONFIG.MAILERSEND_API_KEY === "YOUR_MAILERSEND_API_KEY_HERE") {
         output.markdown("## ❌ ERROR: Please update the MAILERSEND_API_KEY in the script!\n");
+        return;
+    }
+    
+    if (!isValidEmail(CONFIG.FROM_EMAIL)) {
+        output.markdown("## ❌ ERROR: FROM_EMAIL is not a valid email address!\n");
         return;
     }
     
@@ -186,53 +315,77 @@ async function sendInterviewEmails() {
     
     let successCount = 0;
     let failureCount = 0;
+    let skippedCount = 0;
     let errors = [];
     
     // Process records
     for (let i = 0; i < pendingRecords.length; i++) {
         let record = pendingRecords[i];
+        let startTime = Date.now();
         
         try {
             // Extract candidate information
-            let candidateName = record.getCellValue("Candidate Name");
+            let candidateName = record.getCellValue("Candidate Name") || "Candidate";
             let candidateEmail = record.getCellValue("Email");
             let round = record.getCellValue("Interview Round")?.name || "Round 1";
             let calendlyLink = record.getCellValue("Calendly Link");
             
-            // Validate required fields
-            if (!candidateEmail || !calendlyLink) {
-                throw new Error("Missing email or Calendly link");
+            output.text(`\n[${i + 1}/${pendingRecords.length}] Processing: ${candidateName} (${candidateEmail})`);
+            
+            // Validate email address
+            if (!isValidEmail(candidateEmail)) {
+                throw new Error("Invalid email address format");
+            }
+            
+            // Validate Calendly link
+            if (!calendlyLink) {
+                output.text(`  ⚠️ Warning: No Calendly link provided. Skipping...`);
+                skippedCount++;
+                
+                await table.updateRecordAsync(record.id, {
+                    "Email Status": { name: "Failed" }
+                });
+                
+                errors.push({
+                    candidate: candidateName,
+                    email: candidateEmail,
+                    error: "Missing Calendly link",
+                    timestamp: new Date().toISOString(),
+                    errorType: "ValidationError"
+                });
+                
+                continue;
+            }
+            
+            if (!isValidURL(calendlyLink)) {
+                output.text(`  ⚠️ Warning: Invalid Calendly URL format`);
             }
             
             // Generate email content
             let emailHTML = generateEmailHTML(candidateName, round, calendlyLink);
             let emailSubject = `Interview Invitation - ${round} at Weekday`;
             
-            // Send email via MailerSend API
-            let response = await fetch("https://api.mailersend.com/v1/email", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${CONFIG.MAILERSEND_API_KEY}`
+            // Prepare email data
+            let emailData = {
+                from: {
+                    email: CONFIG.FROM_EMAIL,
+                    name: CONFIG.FROM_NAME
                 },
-                body: JSON.stringify({
-                    from: {
-                        email: CONFIG.FROM_EMAIL,
-                        name: CONFIG.FROM_NAME
-                    },
-                    to: [{
-                        email: candidateEmail,
-                        name: candidateName
-                    }],
-                    subject: emailSubject,
-                    html: emailHTML
-                })
-            });
+                to: [{
+                    email: candidateEmail,
+                    name: candidateName
+                }],
+                subject: emailSubject,
+                html: emailHTML
+            };
             
-            // Check response
-            if (response.status === 202) {
+            // Send email with retry logic
+            let result = await sendEmailWithRetry(emailData);
+            
+            if (result.success) {
                 // Email sent successfully
                 let currentTime = new Date().toISOString();
+                let duration = Date.now() - startTime;
                 
                 await table.updateRecordAsync(record.id, {
                     "Mail Sent Time": currentTime,
@@ -240,30 +393,35 @@ async function sendInterviewEmails() {
                 });
                 
                 successCount++;
-                output.text(`✅ [${i + 1}/${pendingRecords.length}] Sent to ${candidateName} (${candidateEmail})`);
+                output.text(`  ✅ Success! (${duration}ms, attempt ${result.attempt})`);
             } else {
-                throw new Error(`API returned status ${response.status}`);
+                throw new Error(result.error);
             }
             
         } catch (error) {
             // Email failed
             failureCount++;
+            let duration = Date.now() - startTime;
+            
             errors.push({
-                candidate: record.getCellValue("Candidate Name"),
-                email: record.getCellValue("Email"),
-                error: error.message
+                candidate: record.getCellValue("Candidate Name") || "Unknown",
+                email: record.getCellValue("Email") || "Unknown",
+                error: error.message,
+                timestamp: new Date().toISOString(),
+                errorType: error.name || "Error",
+                duration: duration
             });
             
             await table.updateRecordAsync(record.id, {
                 "Email Status": { name: "Failed" }
             });
             
-            output.text(`❌ [${i + 1}/${pendingRecords.length}] Failed: ${record.getCellValue("Candidate Name")} - ${error.message}`);
+            output.text(`  ❌ Failed: ${error.message} (${duration}ms)`);
         }
         
         // Rate limiting - wait before next email
         if (i < pendingRecords.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, CONFIG.RATE_LIMIT_MS));
+            await sleep(CONFIG.RATE_LIMIT_MS);
         }
     }
     
@@ -273,12 +431,16 @@ async function sendInterviewEmails() {
     output.markdown(`- **Total Emails:** ${pendingRecords.length}`);
     output.markdown(`- **Successfully Sent:** ${successCount} ✅`);
     output.markdown(`- **Failed:** ${failureCount} ❌`);
+    output.markdown(`- **Skipped:** ${skippedCount} ⚠️`);
     output.markdown(`- **Success Rate:** ${((successCount/pendingRecords.length) * 100).toFixed(2)}%`);
     
     if (errors.length > 0) {
-        output.markdown("\n## ⚠️ Failed Emails:\n");
+        output.markdown("\n## ⚠️ Failed/Skipped Emails:\n");
         for (let error of errors) {
-            output.markdown(`- **${error.candidate}** (${error.email}): ${error.error}`);
+            output.markdown(`- **${error.candidate}** (${error.email})`);
+            output.markdown(`  - Error: ${error.error}`);
+            output.markdown(`  - Type: ${error.errorType}`);
+            output.markdown(`  - Time: ${error.timestamp}`);
         }
     }
     
