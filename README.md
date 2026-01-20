@@ -1,7 +1,7 @@
 # Weekday Founder's Office - Coding Assignment
 
-**Candidate:** 2022 12027  
-**Email:** 202212027@dau.ac.in  
+**Candidate:** HARI KAPADIA  
+**Email:** harikapadia999@gmail.com
 **Assignment:** Automated Interview Scheduling System
 
 ---
@@ -266,8 +266,8 @@ Weekday (YC W21) is a Y-Combinator backed startup that helps companies and candi
 
 ## 📞 Contact
 
-**Candidate:** 2022 12027  
-**Email:** 202212027@dau.ac.in  
+**Candidate:** HARI KAPADIA  
+**Email:** harikapadia999@gmail.com  
 **GitHub:** https://github.com/harikapadia999
 
 ---
@@ -286,5 +286,5 @@ This project is created as part of the Weekday Founder's Office internship appli
 
 ---
 
-**Last Updated:** January 2024  
+**Last Updated:** January 2026  
 **Status:** ✅ Complete and Ready for Review
