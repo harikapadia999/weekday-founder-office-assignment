@@ -11,8 +11,8 @@
  * - Enhanced error logging
  * - Better progress tracking
  * 
- * Author: 2022 12027
- * Email: 202212027@dau.ac.in
+ * Author: HARI KAPADIA
+ * Email: harikapadia999@gmail.com
  * Assignment: Weekday Founder's Office Coding Assignment
  */
 
